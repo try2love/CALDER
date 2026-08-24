@@ -204,7 +204,8 @@ def train(args: argparse.Namespace) -> dict[str, object]:
     if args.learning_rate <= 0 or args.weight_decay < 0 or args.gradient_clip_norm <= 0:
         raise ValueError("optimizer values are outside their valid ranges")
     output_dir = args.output.resolve()
-    if output_dir.exists() and any(output_dir.iterdir()):
+    existing = [] if not output_dir.exists() else [path for path in output_dir.iterdir() if path.name != ".cache"]
+    if existing:
         raise FileExistsError(f"refusing to overwrite non-empty output directory: {output_dir}")
     output_dir.mkdir(parents=True, exist_ok=True)
     train_dataset = PortableFeatureDataset(args.train, require_labels=True)
@@ -447,54 +448,3 @@ def make_demo(args: argparse.Namespace) -> dict[str, object]:
     }
     _atomic_json(payload, output_dir / "demo_manifest.json")
     return payload
-
-
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="calder")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    demo = subparsers.add_parser("make-demo", help="generate synthetic NPZ features")
-    demo.add_argument("--output", type=Path, default=Path("demo_data"))
-    demo.add_argument("--train-records", type=int, default=64)
-    demo.add_argument("--dev-records", type=int, default=32)
-    demo.add_argument("--test-records", type=int, default=32)
-    demo.add_argument("--semantic-dim", type=int, default=32)
-    demo.add_argument("--seed", type=int, default=42)
-    demo.set_defaults(handler=make_demo)
-
-    training = subparsers.add_parser("train", help="train CALDER from portable NPZ features")
-    training.add_argument("--train", required=True, type=Path)
-    training.add_argument("--dev", required=True, type=Path)
-    training.add_argument("--output", required=True, type=Path)
-    training.add_argument("--device", default="auto")
-    training.add_argument("--seed", type=int, default=42)
-    training.add_argument("--epochs", type=int, default=50)
-    training.add_argument("--patience", type=int, default=5)
-    training.add_argument("--batch-size", type=int, default=128)
-    training.add_argument("--hidden-dim", type=int, default=128)
-    training.add_argument("--convolution-channels", type=int, default=64)
-    training.add_argument("--branch-dropout", type=float, default=0.0)
-    training.add_argument("--fusion", choices=("adaptive_gate", "concat_mlp"), default="adaptive_gate")
-    training.add_argument("--learning-rate", type=float, default=3e-4)
-    training.add_argument("--weight-decay", type=float, default=0.0)
-    training.add_argument("--gradient-clip-norm", type=float, default=1.0)
-    training.set_defaults(handler=train)
-
-    prediction = subparsers.add_parser("predict", help="classify portable NPZ features")
-    prediction.add_argument("--model", required=True, type=Path)
-    prediction.add_argument("--input", required=True, type=Path)
-    prediction.add_argument("--output", required=True, type=Path)
-    prediction.add_argument("--device", default="auto")
-    prediction.add_argument("--batch-size", type=int, default=256)
-    prediction.set_defaults(handler=predict)
-    return parser
-
-
-def main() -> None:
-    args = build_parser().parse_args()
-    payload = args.handler(args)
-    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-
-
-if __name__ == "__main__":
-    main()

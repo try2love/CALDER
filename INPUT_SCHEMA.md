@@ -17,10 +17,11 @@ The model consumes eight aligned tensors. The batch dimension is omitted below.
 inputs must be finite. Every record must have at least one valid semantic span
 and one valid token-evidence span.
 
-The beginner `calder train/predict` interface stores the batch dimension in one
-portable NPZ file. Training and evaluation files additionally contain binary
-`labels` with human=0/AI=1. An aligned unique `sample_ids` string array is
-recommended; deterministic positional IDs are generated when it is absent.
+The public `python -m benchmark_fusion train/predict` interface accepts raw
+text. It constructs these tensors and an internal NPZ cache automatically;
+users do not prepare feature arrays. Training records additionally contain
+binary labels with human=0/AI=1. Unique sample IDs are recommended and
+deterministic positional IDs are generated when absent.
 
 The formal paper-protocol loader instead uses a manifest that references three aligned shard families:
 the base feature shard and two null-reference shards. Each family must contain
